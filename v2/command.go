@@ -247,7 +247,13 @@ func (stmt *defaultStmt) writeDefine() error {
 		if col.DataType == OCIBlobLocator || col.DataType == OCIClobLocator || col.DataType == VECTOR {
 			num = 0
 			// temp.ContFlag |= 0x2000000
-			if stmt.connection.connOption.Lob == configurations.INLINE && !col.IsJson {
+			// A CLOB with an IS JSON check is described as JSON too. Fetch it
+			// inline like any other CLOB: the locator path below only carries
+			// the first 0x8000 characters as prefetched data, and
+			// decodeColumnValue returns that prefix as the whole value, so a
+			// longer JSON document read back cut at 32,768 characters. A
+			// binary (BLOB or OSON) JSON column keeps the locator path.
+			if stmt.connection.connOption.Lob == configurations.INLINE && (!col.IsJson || col.DataType == OCIClobLocator) {
 				num = 0x3FFFFFFF
 				// col.MaxCharLen = 0
 				if col.DataType == OCIBlobLocator || col.DataType == VECTOR {
